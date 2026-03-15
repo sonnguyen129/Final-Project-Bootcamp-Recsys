@@ -1,0 +1,31 @@
+# Core data
+pandas==2.3.3
+numpy==2.2.6
+scipy==1.13.1
+scikit-learn==1.7.2
+
+# Retrieval
+implicit==0.7.2
+gensim==4.4.0
+faiss-cpu==1.13.2
+
+# Deep learning
+torch==2.5.1
+torch-geometric==2.6.1
+
+# LLM reranker
+openai>=1.0.0
+
+# API
+fastapi>=0.110.0
+uvicorn>=0.29.0
+
+# Experiment tracking
+wandb==0.22.0
+
+# Visualization
+matplotlib==3.9.2
+seaborn==0.13.2
+
+# Utilities
+tqdm==4.66.5
