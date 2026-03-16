@@ -12,6 +12,8 @@ faiss-cpu==1.13.2
 # Deep learning
 torch==2.5.1
 torch-geometric==2.6.1
+torch-scatter
+torch-sparse
 
 # LLM reranker
 openai>=1.0.0

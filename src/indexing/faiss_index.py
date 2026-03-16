@@ -134,7 +134,7 @@ class FAISSIndex:
         os.makedirs(os.path.dirname(index_path), exist_ok=True)
         faiss.write_index(self.index, index_path)
         with open(ids_path, "w") as f:
-            json.dump({"item_ids": self.item_ids, "dim": self.dim, "mode": self.mode}, f)
+            json.dump({"item_ids": [int(x) for x in self.item_ids], "dim": self.dim, "mode": self.mode}, f)
         print(f"FAISS index saved to {index_path}")
 
     @staticmethod

@@ -62,7 +62,7 @@ def load_item_daily_features() -> pd.DataFrame:
 
 def load_caption_category() -> pd.DataFrame:
     path = DATA_DIR / "kuairec_caption_category.csv"
-    return pd.read_csv(path)
+    return pd.read_csv(path, engine="python", encoding="utf-8", on_bad_lines="skip")
 
 
 # ---------------------------------------------------------------------------
@@ -158,7 +158,56 @@ def build_ground_truth(small_df: pd.DataFrame,
     """
     pos = small_df[small_df["watch_ratio"] > threshold]
     gt = pos.groupby("user_id")["video_id"].apply(set).to_dict()
-    print(f"Ground truth built for {len(gt):,} users from small_matrix")
+    print(f"Ground truth (fixed thr={threshold}) built for {len(gt):,} users")
+    return gt
+
+
+# Duration-adaptive thresholds (based on EDA of small_matrix watch_ratio distributions)
+# Short videos are easy to rewatch → higher bar; long videos rarely rewatched → lower bar
+ADAPTIVE_THRESHOLDS = {
+    # (max_duration_sec, watch_ratio_threshold)
+    7:    2.0,   # <7s   — median_wr=1.23, ~13% positive
+    15:   1.0,   # 7-15s — median_wr=0.78, ~29% positive at 1.0
+    30:   0.5,   # 15-30s — median_wr=0.38, ~26% positive at 0.5
+    60:   0.3,   # 30-60s — median_wr=0.17, ~3% positive at 0.3
+    9999: 0.2,   # >60s  — median_wr=0.06, ~1% positive at 0.2
+}
+
+
+def build_adaptive_ground_truth(small_df: pd.DataFrame,
+                                 thresholds: dict = None) -> dict[int, set[int]]:
+    """
+    Adaptive positive labeling: threshold depends on video_duration.
+    Short videos need higher watch_ratio; long videos need lower.
+
+    Parameters
+    ----------
+    thresholds : dict {max_duration_sec: watch_ratio_threshold}
+                 Sorted by duration. An interaction is positive if
+                 watch_ratio > threshold for its duration bin.
+    """
+    if thresholds is None:
+        thresholds = ADAPTIVE_THRESHOLDS
+
+    df = small_df.copy()
+    dur_sec = df["video_duration"] / 1000.0
+
+    # Assign threshold per row based on duration bins
+    sorted_bins = sorted(thresholds.items())  # [(7, 2.0), (15, 1.0), ...]
+    thr = pd.Series(sorted_bins[-1][1], index=df.index, dtype=np.float64)
+    for max_dur, wr_thr in sorted_bins:
+        thr[dur_sec <= max_dur] = wr_thr
+    # Apply from largest to smallest so smallest bin wins
+    for max_dur, wr_thr in reversed(sorted_bins):
+        thr[dur_sec <= max_dur] = wr_thr
+
+    pos = df[df["watch_ratio"] > thr]
+    gt = pos.groupby("user_id")["video_id"].apply(set).to_dict()
+
+    total_pos_rate = len(pos) / len(df) * 100
+    avg_pos = np.mean([len(v) for v in gt.values()])
+    print(f"Ground truth (adaptive) built for {len(gt):,} users  "
+          f"({total_pos_rate:.1f}% positive, avg {avg_pos:.0f} items/user)")
     return gt
 
 
